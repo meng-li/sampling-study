@@ -4,15 +4,15 @@ import pylab as p
 import scipy as s
 import scipy.stats as stats
 
-proposal_mean = [1.0, 0.5]
-proposal_std  = [1.5, 0.5]
+proposal_mean = [1.0, 1.0]
+proposal_std  = [1.5, 2.0]
 
 target_x_0 = [-1.0, 1.0]
 target_x_1 = [-1.0, 1.0]
 
 def proposal_sample(size, center = None):
     if center == None:
-        center = (proposal_mean[0], proposal_mean[1])
+        center = proposal_mean
 
     x_0 = np.random.normal(center[0], proposal_std[0], size)
     x_1 = np.random.normal(center[1], proposal_std[1], size)
@@ -261,8 +261,9 @@ def demo_gibbs():
 
 
 if __name__ == '__main__':
+    print 'target distribution is the uniform over the square with x_0 in [%s, %s] and x_1 in [%s, %s]'%(target_x_0[0], target_x_0[1], target_x_1[0], target_x_1[1])
     #demo_rejection()
-    #demo_importance()
+    demo_importance()
     #demo_sampling_resampling()
     #demo_metropolis()
-    demo_gibbs()
+    #demo_gibbs()
