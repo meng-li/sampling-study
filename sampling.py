@@ -10,10 +10,12 @@ proposal_std  = [1.5, 1.5]
 target_x_0 = [-1.0, 1.0]
 target_x_1 = [-1.0, 1.0]
 
-def proposal_sample(size):
+def proposal_sample(size, center = None):
+    if center == None:
+        center = (proposal_mean[0], proposal_mean[1])
 
-    x_0 = np.random.normal(proposal_mean[0], proposal_std[0], size)
-    x_1 = np.random.normal(proposal_mean[1], proposal_std[1], size)
+    x_0 = np.random.normal(center[0], proposal_std[0], size)
+    x_1 = np.random.normal(center[1], proposal_std[1], size)
 
     return np.array( [x_0, x_1] ).T
 
@@ -116,6 +118,26 @@ def sampling_resampling(iterations, proposal_size, target_size):
 
     return np.array(target_sample), np.array(source_sample)
 
+def metropolis_sampling(size):
+    z_0 = proposal_mean
+    accepted, rejected = [], []
+
+    for _ in xrange(size):
+        z_1 = proposal_sample(1, z_0)[0]
+
+
+        acceptance_prob = min(1.0, target_pdf(z_1) / target_pdf(z_0) )
+        u = np.random.uniform(0, 1)
+
+        if u < acceptance_prob:
+            z_0 = z_1
+        else:
+            rejected.append(z_1)
+
+        accepted.append(z_0)
+
+    return np.array(accepted), np.array(rejected)
+
 def plot_target():
     vertexes = np.array( [[target_x_0[0], target_x_1[0]], 
                          [target_x_0[0], target_x_1[1]],
@@ -177,8 +199,29 @@ def demo_sampling_resampling():
     p.ylim(target_x_1[0] - 3, target_x_1[1] + 3)
     p.show()
 
+def demo_metropolis():
+    size = 10000
+    sieve = [10 *k for k in xrange(1000)]
+
+    accepted, rejected = metropolis_sampling(size)
+    accepted = accepted[sieve, :]
+
+    print 'mean of the resulting sample', accepted.mean(0)
+    print 'accepted %s, rejected %s, total %s'%(accepted.shape[0], rejected.shape[0], size)
+
+    plot_target()
+
+    #p.scatter(rejected[:, 0], rejected[:, 1], color='blue')
+    p.scatter(accepted[:, 0], accepted[:, 1], color='green')
+
+    p.grid(True)
+    p.xlim(target_x_0[0] - 3, target_x_0[1] + 3)
+    p.ylim(target_x_1[0] - 3, target_x_1[1] + 3)
+    p.show()
+
 
 if __name__ == '__main__':
     #demo_rejection()
     #demo_importance()
-    demo_sampling_resampling()
+    #demo_sampling_resampling()
+    demo_metropolis()
