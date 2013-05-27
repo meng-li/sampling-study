@@ -4,8 +4,8 @@ import pylab as p
 import scipy as s
 import scipy.stats as stats
 
-proposal_mean = [1.0, 1.0]
-proposal_std  = [2.0, 2.0]
+proposal_mean = [0.0, 1.0]
+proposal_std  = [1.5, 1.5]
 
 target_x_0 = [-1.0, 1.0]
 target_x_1 = [-1.0, 1.0]
@@ -71,10 +71,50 @@ def rejection_sampling(sample, k):
         else:
             #reject
             rejected.append(z_0)
-
-
     return np.array(accepted), np.array(rejected)
         
+def importance_sampling(sample):
+    weights = []
+
+    for i in xrange(sample.shape[0]):
+        z_0 = sample[i, :]
+
+        prob_proposal = proposal_pdf(z_0)
+        prob_target   = target_pdf(z_0)
+
+        weights.append( prob_target / prob_proposal )
+
+    return np.array( weights )
+
+def sampling_resampling(iterations, proposal_size, target_size):
+    target_sample = []
+    source_sample = []
+
+    for _ in xrange(iterations):
+        sample = proposal_sample(proposal_size)
+        weights = []
+
+        for i in xrange(sample.shape[0]):
+            z_0 = sample[i, :]
+
+            source_sample.append(z_0)
+
+            prob_proposal = proposal_pdf(z_0)
+            prob_target   = target_pdf(z_0)
+
+            weights.append( prob_target / prob_proposal )
+
+        weights = np.array( weights )
+        weights /= weights.sum()
+
+        to_sample = np.random.multinomial(target_size, weights, size=1)[0, :]
+        for i in xrange(to_sample.shape[0]):
+            count = to_sample[i]
+            point = [sample[i, 0], sample[i, 1]]
+
+            target_sample += [ point ] * count 
+
+    return np.array(target_sample), np.array(source_sample)
 
 def plot_target():
     vertexes = np.array( [[target_x_0[0], target_x_1[0]], 
@@ -86,12 +126,15 @@ def plot_target():
 
     p.plot(map(lambda x: x[0], vertexes), map(lambda x: x[1], vertexes), 'red')
 
-def plot_rejection():
+def demo_rejection():
+    size = 1000
+
     rejection_K = rejection_sampling_K()
-    sample = proposal_sample(1000)
+    sample = proposal_sample(size)
     accepted, rejected = rejection_sampling(sample, rejection_K )
     print 'mean of the proposal sample', sample.mean(0)
     print 'mean of the resulting sample', accepted.mean(0)
+    print 'accepted %s, rejected %s, total %s'%(accepted.shape[0], rejected.shape[0], size)
 
     plot_target()
 
@@ -104,5 +147,38 @@ def plot_rejection():
     p.show()
 
 
+def demo_importance():
+    size = 1000
+
+    sample = proposal_sample(size)
+    weights = importance_sampling(sample)
+    
+    print 'mean of the proposal sample', sample.mean(0)
+    print 'mean of the resulting sample', (sample * np.array([weights, weights]).T).mean(0)
+
+def demo_sampling_resampling():
+    iterations = 10
+    proposal_size = 100
+    target_size = 10
+    
+    
+    resample, sample = sampling_resampling(iterations, proposal_size, target_size)
+
+    print 'mean of the proposal sample', sample.mean(0)
+    print 'mean of the resulting sample', resample.mean(0)
+    print 'resample size %s, total %s'%(resample.shape[0], sample.shape[0])
+
+    plot_target()
+
+    p.scatter(resample[:, 0], resample[:, 1], color='green')
+
+    p.grid(True)
+    p.xlim(target_x_0[0] - 3, target_x_0[1] + 3)
+    p.ylim(target_x_1[0] - 3, target_x_1[1] + 3)
+    p.show()
+
+
 if __name__ == '__main__':
-    plot_rejection()
+    #demo_rejection()
+    #demo_importance()
+    demo_sampling_resampling()
