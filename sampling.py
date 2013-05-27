@@ -4,8 +4,8 @@ import pylab as p
 import scipy as s
 import scipy.stats as stats
 
-proposal_mean = [0.0, 1.0]
-proposal_std  = [1.5, 1.5]
+proposal_mean = [1.0, 0.5]
+proposal_std  = [1.5, 0.5]
 
 target_x_0 = [-1.0, 1.0]
 target_x_1 = [-1.0, 1.0]
@@ -41,6 +41,13 @@ def target_sample(size):
 
     return np.array( [x_0, x_1] )
 
+def target_sample_x_0(x_1):
+    x_0 = np.random.uniform(target_x_0[0], target_x_0[1], 1)
+    return x_0
+
+def target_sample_x_1(x_0):
+    x_1 = np.random.uniform(target_x_1[0], target_x_1[1], 1)
+    return x_1
 
 def rejection_sampling_K():
     vertexes = itertools.product( target_x_0, target_x_1 )
@@ -119,7 +126,8 @@ def sampling_resampling(iterations, proposal_size, target_size):
     return np.array(target_sample), np.array(source_sample)
 
 def metropolis_sampling(size):
-    z_0 = proposal_mean
+    z_0 = (target_x_0[0] + target_x_0[1], target_x_1[0] + target_x_1[1])
+
     accepted, rejected = [], []
 
     for _ in xrange(size):
@@ -137,6 +145,23 @@ def metropolis_sampling(size):
         accepted.append(z_0)
 
     return np.array(accepted), np.array(rejected)
+
+def gibbs_sampling(size):
+    x_0 = target_x_0[0] + target_x_0[1]
+    x_1 = target_x_1[0] + target_x_1[1]
+
+    sample = [ (x_0, x_1) ]
+
+    for _ in xrange(size / 2):
+        
+        x_0 = target_sample_x_0(x_1)
+        sample.append( (x_0, x_1) )
+
+        x_1 = target_sample_x_0(x_0)
+        sample.append( (x_0, x_1) )
+
+    return np.array(sample)
+
 
 def plot_target():
     vertexes = np.array( [[target_x_0[0], target_x_1[0]], 
@@ -211,8 +236,23 @@ def demo_metropolis():
 
     plot_target()
 
-    #p.scatter(rejected[:, 0], rejected[:, 1], color='blue')
+    p.scatter(rejected[:, 0], rejected[:, 1], color='blue')
     p.scatter(accepted[:, 0], accepted[:, 1], color='green')
+
+    p.grid(True)
+    p.xlim(target_x_0[0] - 3, target_x_0[1] + 3)
+    p.ylim(target_x_1[0] - 3, target_x_1[1] + 3)
+    p.show()
+
+def demo_gibbs():
+    target_size = 1000
+    sample = gibbs_sampling(target_size)
+
+    print 'mean of the resulting sample', sample.mean(0)
+
+    plot_target()
+
+    p.scatter(sample[:, 0], sample[:, 1], color='green')
 
     p.grid(True)
     p.xlim(target_x_0[0] - 3, target_x_0[1] + 3)
@@ -224,4 +264,5 @@ if __name__ == '__main__':
     #demo_rejection()
     #demo_importance()
     #demo_sampling_resampling()
-    demo_metropolis()
+    #demo_metropolis()
+    demo_gibbs()
