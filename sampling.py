@@ -4,13 +4,21 @@ import pylab as p
 import scipy as s
 import scipy.stats as stats
 
+#We use two dimensional (multivariate) Normal distribution (http://en.wikipedia.org/wiki/Multivariate_normal_distribution) 
+#as a proposal distribution with proposal_mean as it's center and proposal_std as it's diagonal covariance matrix
+
 proposal_mean = [1.0, 1.0]
 proposal_std  = [1.5, 2.0]
+
+#The target distribution is the uniform distribution over rectangle, bounded between
+# x_0 >= target_x_0[0] && x_0 <= target_x_0[1]
+# x_1 >= target_x_1[0] && x_1 <= target_x_1[1]
 
 target_x_0 = [-1.0, 1.0]
 target_x_1 = [-1.0, 1.0]
 
 def proposal_sample(size, center = None):
+    '''Returns a sample from the proposal distribution. The returned sample is a numpy array of (`size`, 2) shape. If `center` is not None, the center of the proposal distribution is shifted to `center`, otherwise `proposal_mean` is used.'''
     if center == None:
         center = proposal_mean
 
@@ -20,11 +28,13 @@ def proposal_sample(size, center = None):
     return np.array( [x_0, x_1] ).T
 
 def proposal_pdf(point):
+    '''Returns the proposal distribution's pdf (probability density function) at the `point`.'''
     prob =  stats.norm.pdf(point[0], proposal_mean[0], proposal_std[0])
     prob *= stats.norm.pdf(point[1], proposal_mean[1], proposal_std[1])
     return prob
 
 def target_pdf(point):
+    '''Returns the target distribution's pdf at the `point`.'''
     if point[0] > target_x_0[1] or point[0] < target_x_0[0]:
         return 0
     if point[1] > target_x_1[1] or point[1] < target_x_1[0]:
@@ -36,33 +46,38 @@ def target_pdf(point):
     return prob
 
 def target_sample(size):
+    '''Returns a sample from the target distribution (used only for the illustration). The returned sample is a numpy array of (`size`, 2) shape.'''
     x_0 = np.random.uniform(target_x_0[0], target_x_0[1], size)
     x_1 = np.random.uniform(target_x_1[0], target_x_1[1], size)
 
     return np.array( [x_0, x_1] )
 
 def target_sample_x_0(x_1):
+    '''Generates a value of the first coordinate from the target distribution conditioned by the second coordinate: x_0 ~ P(x_0 | x_1). Used by Gibbs sampling.'''
     x_0 = np.random.uniform(target_x_0[0], target_x_0[1], 1)
     return x_0
 
 def target_sample_x_1(x_0):
+    '''Generates a value of the second coordinate from the target distribution conditioned by the first coordinate: x_1 ~ P(x_1 | x_0). Used by Gibbs sampling.'''
     x_1 = np.random.uniform(target_x_1[0], target_x_1[1], 1)
     return x_1
 
 def rejection_sampling_K():
+    '''In order to perform rejection sampling, one needs to define a constant K such that q(x) * K >= p(x) for all x: p(x) > 0, where q(x) and p(x) are the proposal and the target distributions. In this function we estimate it as the maximal ratio of p(x) / q(x) over the vertexes of the target distribution's support (rectangle).'''
+
     vertexes = itertools.product( target_x_0, target_x_1 )
     vertexes = list(vertexes)
 
     probs_target = map(target_pdf, vertexes)
     probs_proposal = map(proposal_pdf, vertexes)
 
-    K = min( [k/v for k, v in zip(probs_target, probs_proposal)] )
+    K = max( [k/v for k, v in zip(probs_target, probs_proposal)] )
  
     return K
 
 
 def rejection_sampling(sample, k):
-    '''takes a sample from the poposal distribution and produces a sample from the target distribution'''
+    '''The function implements the rejection sampling technique. `sample` is a sample from the proposal distribution and `k` takes a sample from the proposal distribution and returns two sub-samples: points that are accepted and those that are rejected. The first sub-sample represents a sample from the target distribution.'''
     accepted = []
     rejected = []
 
@@ -83,6 +98,7 @@ def rejection_sampling(sample, k):
     return np.array(accepted), np.array(rejected)
         
 def importance_sampling(sample):
+    '''This function implements the importance sampling technique. `sample` is a sample from the proposal distribution. The function returns a vector of weights. These weights can be used to estimate some statistics of the target distribution using the sample `sample` from the proposal distribution.'''
     weights = []
 
     for i in xrange(sample.shape[0]):
@@ -96,6 +112,7 @@ def importance_sampling(sample):
     return np.array( weights )
 
 def sampling_resampling(iterations, proposal_size, target_size):
+    '''The function implements the sampling-importance-resampling technique. This algorithms runs in iterations, on each iteration `proposal_size` points from the proposal distribution are sampled. After that they are re-weighted just as in importance sampling, but these weights are used to re-sample `target_size` points. The latter are used as a sample from the target distribution. This function returns two numpy arrays: the resulting sample of shape (iterations * target_size, 2) and a sample of points that are not resampled on the second (resampling) step.'''
     target_sample = []
     source_sample = []
 
@@ -126,6 +143,7 @@ def sampling_resampling(iterations, proposal_size, target_size):
     return np.array(target_sample), np.array(source_sample)
 
 def metropolis_sampling(size):
+    '''This function implements the Metropolis sampling technique. Returns two samples: the resulting sample in a numpy array (size, 2) shape and sample of points that were rejected (for the purpose of illustration).'''
     z_0 = (target_x_0[0] + target_x_0[1], target_x_1[0] + target_x_1[1])
 
     accepted, rejected = [], []
@@ -147,6 +165,7 @@ def metropolis_sampling(size):
     return np.array(accepted), np.array(rejected)
 
 def gibbs_sampling(size):
+    '''This function implements the Gibbs sampling technique. Returns a sample from the target distribution in a numpy array of (size, 2) shape.'''
     x_0 = target_x_0[0] + target_x_0[1]
     x_1 = target_x_1[0] + target_x_1[1]
 
@@ -164,6 +183,7 @@ def gibbs_sampling(size):
 
 
 def plot_target():
+    '''Plots a boundaries of the target distribution's support rectangle.'''
     vertexes = np.array( [[target_x_0[0], target_x_1[0]], 
                          [target_x_0[0], target_x_1[1]],
                          [target_x_0[1], target_x_1[1]],
